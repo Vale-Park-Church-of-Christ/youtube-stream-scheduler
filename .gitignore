@@ -1,0 +1,10 @@
+# Python VENV
+venv/
+
+# Oauth tokens and credentials
+client_secret.json
+tokens/
+
+# Python Cache
+*.pyc
+__pycache__/
