@@ -1,10 +1,8 @@
-# Python VENV
-venv/
+# OAuth credentials — never commit these
+client_secrets.json
+credentials.pkl
 
-# Oauth tokens and credentials
-client_secret.json
-tokens/
-
-# Python Cache
-*.pyc
+# Python
 __pycache__/
+*.pyc
+venv/
