@@ -20,15 +20,28 @@ jobs:
             if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
           }
 
-          if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
-            winget install Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+          # Check PATH first, then fall back to common install locations.
+          # The runner service PATH may not reflect Python installs that happened
+          # after the service started, so the filesystem check avoids reinstalling
+          # on every deployment.
+          $pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+          if (-not $pythonExe) {
+            $pythonExe = Get-ChildItem "C:\Program Files\Python3*\python.exe" `
+                           -ErrorAction SilentlyContinue |
+                         Sort-Object FullName -Descending |
+                         Select-Object -First 1 -ExpandProperty FullName
           }
 
-          # Persist Python location across all subsequent steps
-          $pythonDir = Split-Path (Get-Command python).Source
-          Add-Content $env:GITHUB_PATH $pythonDir
-          python --version
+          if (-not $pythonExe) {
+            Write-Host "Python not found — installing via winget..."
+            winget install Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+            $pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
+          }
+
+          # Persist the Python directory across all subsequent steps
+          Add-Content $env:GITHUB_PATH (Split-Path $pythonExe)
+          & $pythonExe --version
 
       - name: Install dependencies
         shell: pwsh
