@@ -10,9 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Ensure Python is installed
+        shell: pwsh
+        run: |
+          if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+            winget install Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
+            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+          }
+          python --version
 
       - name: Install dependencies
         run: pip install -r requirements.txt
