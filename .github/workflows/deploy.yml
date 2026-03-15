@@ -13,6 +13,13 @@ jobs:
       - name: Ensure Python is installed
         shell: pwsh
         run: |
+          # Remove Windows 11 Microsoft Store Python stubs that intercept the 'python' command
+          $stubDir = "$env:LOCALAPPDATA\Microsoft\WindowsApps"
+          foreach ($stub in @("python.exe", "python3.exe")) {
+            $path = Join-Path $stubDir $stub
+            if (Test-Path $path) { Remove-Item $path -Force -ErrorAction SilentlyContinue }
+          }
+
           if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
             winget install Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
             $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
