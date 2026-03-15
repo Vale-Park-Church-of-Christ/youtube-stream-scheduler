@@ -175,7 +175,7 @@ def get_upcoming_broadcast_titles(youtube):
 def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=None):
     # 1. Create broadcast
     broadcast = youtube.liveBroadcasts().insert(
-        part='snippet,status',
+        part='snippet,status,contentDetails',
         body={
             'snippet': {
                 'title':              title,
@@ -184,6 +184,9 @@ def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=N
             'status': {
                 'privacyStatus':           'public',
                 'selfDeclaredMadeForKids': False,
+            },
+            'contentDetails': {
+                'closedCaptionsType': 'CLOSED_CAPTIONS_YOUTUBE_ASR',
             },
         }
     ).execute()
