@@ -175,7 +175,7 @@ def get_upcoming_broadcast_titles(youtube):
 def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=None):
     # 1. Create broadcast
     broadcast = youtube.liveBroadcasts().insert(
-        part='snippet,status,contentDetails',
+        part='snippet,status',
         body={
             'snippet': {
                 'title':              title,
@@ -184,9 +184,6 @@ def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=N
             'status': {
                 'privacyStatus':           'public',
                 'selfDeclaredMadeForKids': False,
-            },
-            'contentDetails': {
-                'enableClosedCaptions': True,
             },
         }
     ).execute()
@@ -295,19 +292,32 @@ def main():
 
 
 def inspect_broadcast(broadcast_id):
-    """Prints the contentDetails of a broadcast. Used to inspect caption settings."""
+    """Prints full broadcast and video resource details to identify caption settings."""
     import json
     creds   = get_credentials()
     youtube = build('youtube', 'v3', credentials=creds)
-    response = youtube.liveBroadcasts().list(
-        part='contentDetails',
+
+    print('=== liveBroadcasts ===')
+    broadcast = youtube.liveBroadcasts().list(
+        part='snippet,status,contentDetails',
         id=broadcast_id,
     ).execute()
-    items = response.get('items', [])
+    items = broadcast.get('items', [])
     if not items:
         print(f'No broadcast found with ID: {broadcast_id}')
         return
-    print(json.dumps(items[0]['contentDetails'], indent=2))
+    print(json.dumps(items[0], indent=2))
+
+    print('\n=== videos ===')
+    video = youtube.videos().list(
+        part='snippet,status,recordingDetails,localizations',
+        id=broadcast_id,
+    ).execute()
+    items = video.get('items', [])
+    if items:
+        print(json.dumps(items[0], indent=2))
+    else:
+        print('No video resource found.')
 
 
 if __name__ == '__main__':
