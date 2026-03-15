@@ -1,0 +1,54 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Deploy script and credentials
+        shell: pwsh
+        env:
+          CLIENT_SECRETS: ${{ secrets.YOUTUBE_CLIENT_SECRETS }}
+          CREDENTIALS:    ${{ secrets.YOUTUBE_CREDENTIALS }}
+        run: |
+          $dest = "C:\git\vale-church-of-christ\youtube-stream-scheduler"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+          Copy-Item scheduler.py -Destination $dest -Force
+
+          # Always write client_secrets.json — it never changes
+          $env:CLIENT_SECRETS | Out-File -FilePath "$dest\client_secrets.json" -Encoding utf8 -NoNewline
+
+          # Only write credentials.pkl if it doesn't already exist,
+          # so the script can freely refresh the token without it being overwritten on deploy
+          if (-not (Test-Path "$dest\credentials.pkl")) {
+            $bytes = [Convert]::FromBase64String($env:CREDENTIALS)
+            [IO.File]::WriteAllBytes("$dest\credentials.pkl", $bytes)
+            Write-Host "Wrote credentials.pkl"
+          } else {
+            Write-Host "credentials.pkl already exists — skipping"
+          }
+
+      - name: Create or update scheduled task
+        shell: pwsh
+        run: |
+          $dest       = "C:\git\vale-church-of-christ\youtube-stream-scheduler"
+          $python     = (Get-Command python).Source
+          $action     = New-ScheduledTaskAction -Execute $python -Argument "scheduler.py" -WorkingDirectory $dest
+          $trigger    = New-ScheduledTaskTrigger -Daily -At "11:00PM"
+          $settings   = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+          $principal  = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+          Register-ScheduledTask -TaskName "YouTube Stream Scheduler" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+          Write-Host "Scheduled task created/updated"

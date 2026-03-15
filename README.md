@@ -1,6 +1,6 @@
 # YouTube Live Stream Scheduler
 
-Python script that runs nightly on a church PC and ensures YouTube live broadcast events exist for all services in the next 7 days. Broadcasts that already exist are left untouched — only missing ones are created.
+Python script that runs nightly on the Video PC and ensures YouTube live broadcast events exist for all services in the next 7 days. Broadcasts that already exist are left untouched — only missing ones are created.
 
 ## Events
 
@@ -20,12 +20,31 @@ Each broadcast title is prefixed with the event date in `MM/DD/YYYY -` format (e
 - **Ingest type:** RTMP (auto-generated stream key per event)
 - **Privacy:** Public
 
-## Prerequisites
+## How deployment works
 
-- Python 3.8 or later
-- A Google Cloud project with the YouTube Data API v3 enabled
+Pushing to `main` triggers a GitHub Actions workflow that runs on the Video PC via a self-hosted runner. The workflow:
 
-## Setup
+1. Installs Python 3.12 if not already present
+2. Installs Python dependencies
+3. Copies `scheduler.py` to `C:\git\vale-church-of-christ\youtube-stream-scheduler\`
+4. Writes credentials from GitHub Secrets on first deploy to a new PC
+5. Creates or updates a Windows scheduled task that runs the script nightly at 11:00 PM as SYSTEM
+
+---
+
+## Adding a new PC
+
+Install the GitHub Actions self-hosted runner — that's it. Everything else is handled automatically on the next push to `main`.
+
+1. Go to **Settings → Actions → Runners → New self-hosted runner**.
+2. Select **Windows** and run the commands shown — they include a unique token, so copy them directly from that page.
+3. Push any change to `main` to trigger deployment.
+
+---
+
+## Google authentication
+
+> **This only needs to be done once ever.** Credentials are stored in GitHub Secrets and deployed automatically to every PC. Only repeat these steps if authentication is invalidated — e.g., if access is manually revoked or the Google account password changes.
 
 ### 1. Google Cloud Console
 
@@ -33,40 +52,36 @@ Each broadcast title is prefixed with the event date in `MM/DD/YYYY -` format (e
 2. Enable the YouTube Data API v3: **APIs & Services → Enable APIs → search "YouTube Data API v3" → Enable**.
 3. Create OAuth credentials: **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
    - Application type: **Desktop app**
-4. Download the credentials JSON file and save it as `client_secrets.json` in this folder.
+4. Download the credentials JSON file — you'll need its contents in the next step.
 
-### 2. Install dependencies
+### 2. Authorize against the Brand Page channel
 
-```bat
-pip install -r requirements.txt
+1. Install dependencies locally: `pip install -r requirements.txt`
+2. Place `client_secrets.json` in this folder and run:
+
+   ```powershell
+   python scheduler.py
+   ```
+
+3. A browser window will open. **Sign in with the Google account that manages the church's YouTube channel and select the Vale Park Church of Christ channel when prompted.**
+
+### 3. Store credentials in GitHub Secrets
+
+In this repository go to **Settings → Secrets and variables → Actions → New repository secret** and add the following two secrets.
+
+**`YOUTUBE_CLIENT_SECRETS`** — paste the full contents of `client_secrets.json`.
+
+**`YOUTUBE_CREDENTIALS`** — base64-encoded OAuth token. Run the following and paste the output as the secret value:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("credentials.pkl")) | Set-Clipboard
 ```
 
-### 3. Authorize against the Brand Page channel
-
-Run the script once manually from the folder:
-
-```bat
-python scheduler.py
-```
-
-A browser window will open. **Sign in with the Google account that manages the church's YouTube channel and select the Vale Park Church of Christ channel when prompted.** Credentials are saved to `credentials.pkl` — subsequent runs (including scheduled ones) will use this file and refresh it automatically.
-
-### 4. Windows Task Scheduler
-
-1. Open **Task Scheduler** and click **Create Task**.
-2. **General tab:** give it a name (e.g., `YouTube Stream Scheduler`).
-3. **Triggers tab:** New trigger → Daily → set a time (e.g., 11:00 PM).
-4. **Actions tab:** New action:
-   - Program: full path to `python.exe` (e.g., `C:\Python312\python.exe`)
-   - Arguments: `scheduler.py`
-   - Start in: full path to this folder
-5. **Conditions tab:** uncheck "Start only if the computer is on AC power" if the PC may be on battery.
-6. Click OK. The script will run automatically every night.
-
-> **Note:** The church PC must be on when the task runs. If it misses a night, the next time it runs it will catch up — the script always checks the full 7-day window and creates anything missing.
+---
 
 ## Running manually
 
-```bat
+```powershell
+cd C:\git\vale-church-of-christ\youtube-stream-scheduler
 python scheduler.py
 ```
