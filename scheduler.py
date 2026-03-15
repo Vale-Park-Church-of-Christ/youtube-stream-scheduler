@@ -12,6 +12,7 @@ on subsequent runs.
 """
 
 import datetime
+import glob
 import os
 import pickle
 
@@ -22,10 +23,26 @@ from googleapiclient.discovery import build
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-TIMEZONE            = pytz.timezone('America/Chicago')
-CLIENT_SECRETS_FILE = 'client_secrets.json'
-CREDENTIALS_FILE    = 'credentials.pkl'
-SCOPES              = ['https://www.googleapis.com/auth/youtube']
+TIMEZONE         = pytz.timezone('America/Chicago')
+CREDENTIALS_FILE = 'credentials.pkl'
+SCOPES           = ['https://www.googleapis.com/auth/youtube']
+
+
+def find_client_secrets():
+    """Locates the OAuth client secrets file.
+
+    Accepts either the standard deployed name (client_secrets.json) or
+    Google's default download name (client_secret_*.apps.googleusercontent.com.json).
+    """
+    if os.path.exists('client_secrets.json'):
+        return 'client_secrets.json'
+    matches = glob.glob('client_secret_*.apps.googleusercontent.com.json')
+    if matches:
+        return matches[0]
+    raise FileNotFoundError(
+        'No client secrets file found. Expected client_secrets.json or '
+        'client_secret_*.apps.googleusercontent.com.json'
+    )
 
 STREAM_CDN = {
     'frameRate':     '30fps',
@@ -54,7 +71,7 @@ def get_credentials():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow  = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
+            flow  = InstalledAppFlow.from_client_secrets_file(find_client_secrets(), SCOPES)
             creds = flow.run_local_server(port=0)
 
         with open(CREDENTIALS_FILE, 'wb') as f:

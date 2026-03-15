@@ -28,17 +28,22 @@ jobs:
 
           Copy-Item scheduler.py -Destination $dest -Force
 
-          # Always write client_secrets.json — it never changes
-          $env:CLIENT_SECRETS | Out-File -FilePath "$dest\client_secrets.json" -Encoding utf8 -NoNewline
+          # Always write client_secrets.json if the secret is populated — it never changes
+          if ($env:CLIENT_SECRETS) {
+            $env:CLIENT_SECRETS | Out-File -FilePath "$dest\client_secrets.json" -Encoding utf8 -NoNewline
+            Write-Host "Wrote client_secrets.json"
+          } else {
+            Write-Host "YOUTUBE_CLIENT_SECRETS secret not set — skipping"
+          }
 
-          # Only write credentials.pkl if it doesn't already exist,
+          # Only write credentials.pkl if the secret is populated and the file doesn't already exist,
           # so the script can freely refresh the token without it being overwritten on deploy
-          if (-not (Test-Path "$dest\credentials.pkl")) {
+          if ($env:CREDENTIALS -and -not (Test-Path "$dest\credentials.pkl")) {
             $bytes = [Convert]::FromBase64String($env:CREDENTIALS)
             [IO.File]::WriteAllBytes("$dest\credentials.pkl", $bytes)
             Write-Host "Wrote credentials.pkl"
           } else {
-            Write-Host "credentials.pkl already exists — skipping"
+            Write-Host "credentials.pkl already exists or secret not set — skipping"
           }
 
       - name: Create or update scheduled task
