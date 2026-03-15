@@ -10,38 +10,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure Python is installed
+      - name: Remove Microsoft Store Python stubs
         shell: pwsh
         run: |
-          # Remove Windows 11 Microsoft Store Python stubs that intercept the 'python' command
           $stubDir = "$env:LOCALAPPDATA\Microsoft\WindowsApps"
           foreach ($stub in @("python.exe", "python3.exe")) {
             $p = Join-Path $stubDir $stub
             if (Test-Path $p) { Remove-Item $p -Force -ErrorAction SilentlyContinue }
           }
 
-          # Check PATH first, then fall back to common install locations.
-          # The runner service PATH may not reflect Python installs that happened
-          # after the service started, so the filesystem check avoids reinstalling
-          # on every deployment.
-          $pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
-          if (-not $pythonExe) {
-            $pythonExe = Get-ChildItem "C:\Program Files\Python3*\python.exe" `
-                           -ErrorAction SilentlyContinue |
-                         Sort-Object FullName -Descending |
-                         Select-Object -First 1 -ExpandProperty FullName
-          }
-
-          if (-not $pythonExe) {
-            Write-Host "Python not found — installing via winget..."
-            winget install Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
-            $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
-            $pythonExe = (Get-Command python -ErrorAction SilentlyContinue)?.Source
-          }
-
-          # Persist the Python directory across all subsequent steps
-          Add-Content $env:GITHUB_PATH (Split-Path $pythonExe)
-          & $pythonExe --version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - name: Install dependencies
         shell: pwsh
