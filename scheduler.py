@@ -186,7 +186,7 @@ def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=N
                 'selfDeclaredMadeForKids': False,
             },
             'contentDetails': {
-                'closedCaptionsType': 'CLOSED_CAPTIONS_YOUTUBE_ASR',
+                'closedCaptionsType': 'closedCaptionsYoutubeAsr',
             },
         }
     ).execute()
