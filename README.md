@@ -74,7 +74,7 @@ In this repository go to **Settings → Secrets and variables → Actions → Ne
 **`YOUTUBE_CREDENTIALS`** — base64-encoded OAuth token. Run the following and paste the output as the secret value:
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("credentials.pkl")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\git\vale-church-of-christ\youtube-stream-scheduler\credentials.pkl")) | Set-Clipboard
 ```
 
 ---
