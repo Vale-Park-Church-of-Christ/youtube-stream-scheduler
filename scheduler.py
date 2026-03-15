@@ -294,5 +294,25 @@ def main():
     logging.info('Scheduler finished')
 
 
+def inspect_broadcast(broadcast_id):
+    """Prints the contentDetails of a broadcast. Used to inspect caption settings."""
+    import json
+    creds   = get_credentials()
+    youtube = build('youtube', 'v3', credentials=creds)
+    response = youtube.liveBroadcasts().list(
+        part='contentDetails',
+        id=broadcast_id,
+    ).execute()
+    items = response.get('items', [])
+    if not items:
+        print(f'No broadcast found with ID: {broadcast_id}')
+        return
+    print(json.dumps(items[0]['contentDetails'], indent=2))
+
+
 if __name__ == '__main__':
-    main()
+    import sys
+    if len(sys.argv) == 3 and sys.argv[1] == 'inspect':
+        inspect_broadcast(sys.argv[2])
+    else:
+        main()
