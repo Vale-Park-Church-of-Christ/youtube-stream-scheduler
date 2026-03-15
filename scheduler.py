@@ -13,6 +13,7 @@ on subsequent runs.
 
 import datetime
 import glob
+import logging
 import os
 import pickle
 
@@ -26,6 +27,8 @@ from googleapiclient.discovery import build
 TIMEZONE         = pytz.timezone('America/Chicago')
 CREDENTIALS_FILE = 'credentials.pkl'
 SCOPES           = ['https://www.googleapis.com/auth/youtube']
+LOGS_DIR         = 'logs'
+LOGS_TO_KEEP     = 10
 
 
 def find_client_secrets():
@@ -44,6 +47,7 @@ def find_client_secrets():
         'client_secret_*.apps.googleusercontent.com.json'
     )
 
+
 STREAM_CDN = {
     'frameRate':     '30fps',
     'ingestionType': 'rtmp',
@@ -57,6 +61,34 @@ EVENTS = [
     {'title': 'Sunday Evening Worship Service',      'weekday': 6, 'hour': 17, 'minute': 0},
     {'title': 'Wednesday Evening Adult Bible Class', 'weekday': 2, 'hour': 18, 'minute': 0},
 ]
+
+# ── Logging ────────────────────────────────────────────────────────────────────
+
+def setup_logging():
+    os.makedirs(LOGS_DIR, exist_ok=True)
+
+    timestamp = datetime.datetime.now(TIMEZONE).strftime('%Y-%m-%d_%H%M%S')
+    log_file  = os.path.join(LOGS_DIR, f'{timestamp}.log')
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s  %(levelname)-8s  %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler(),
+        ],
+    )
+
+    prune_logs()
+    return log_file
+
+
+def prune_logs():
+    logs = sorted(glob.glob(os.path.join(LOGS_DIR, '*.log')))
+    for old in logs[:-LOGS_TO_KEEP]:
+        os.remove(old)
+
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 
@@ -86,7 +118,6 @@ def get_upcoming_broadcast_titles(youtube):
     titles  = set()
     request = youtube.liveBroadcasts().list(
         part='snippet',
-        mine=True,
         broadcastStatus='upcoming',
         maxResults=50,
     )
@@ -151,6 +182,9 @@ def build_title(date, event_title):
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 def main():
+    setup_logging()
+    logging.info('Scheduler started')
+
     creds   = get_credentials()
     youtube = build('youtube', 'v3', credentials=creds)
 
@@ -160,16 +194,18 @@ def main():
         title = build_title(date, event['title'])
 
         if title in existing_titles:
-            print(f'Already exists: {title}')
+            logging.info(f'Already exists: {title}')
             continue
 
         start_time = build_start_time(date, event['hour'], event['minute'])
 
         try:
             create_broadcast_with_stream(youtube, title, start_time)
-            print(f'Created: {title}')
+            logging.info(f'Created: {title}')
         except Exception as e:
-            print(f'ERROR — {title}: {e}')
+            logging.error(f'Failed to create "{title}": {e}')
+
+    logging.info('Scheduler finished')
 
 if __name__ == '__main__':
     main()

@@ -3,6 +3,9 @@ client_secrets.json
 client_secret_*.apps.googleusercontent.com.json
 credentials.pkl
 
+# Logs
+logs/
+
 # Python
 __pycache__/
 *.pyc
