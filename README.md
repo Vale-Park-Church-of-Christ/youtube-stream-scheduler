@@ -46,7 +46,19 @@ Install the GitHub Actions self-hosted runner — that's it. Everything else is 
 
 > **This only needs to be done once ever.** Credentials are stored in GitHub Secrets and deployed automatically to every PC. Only repeat these steps if authentication is invalidated — e.g., if access is manually revoked or the Google account password changes.
 
+### Why we use a dedicated generic Gmail account
+
+The script authenticates as a **dedicated generic Gmail account** (not the Workspace account). Google Workspace admins can enforce session/token expiration policies (e.g., 14-day forced re-auth) that apply to all accounts in the org — including OAuth refresh tokens. A plain Gmail account is not subject to those policies, so the refresh token persists indefinitely (until manually revoked or inactive for 6+ months). The generic account is granted channel manager access on the brand channel.
+
+### 0. Set up the generic Gmail account
+
+1. Create (or designate) a generic Gmail account for streaming use — e.g. `valepark.streaming@gmail.com`.
+2. In [YouTube Studio](https://studio.youtube.com), go to **Settings → Channel → Permissions** and invite the generic Gmail account as a **Manager**.
+3. Accept the invite by signing in to YouTube as the generic Gmail account.
+
 ### 1. Google Cloud Console
+
+> Create the Cloud project while signed in as the generic Gmail account to keep everything under one non-Workspace identity.
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project.
 2. Enable the YouTube Data API v3: **APIs & Services → Enable APIs → search "YouTube Data API v3" → Enable**.
@@ -63,7 +75,7 @@ Install the GitHub Actions self-hosted runner — that's it. Everything else is 
    python scheduler.py
    ```
 
-3. A browser window will open. **Sign in with the Google account that manages the church's YouTube channel and select the Vale Park Church of Christ channel when prompted.**
+3. A browser window will open. **Sign in as the generic Gmail account** (not the Workspace account). When prompted to choose a channel, select the **Vale Park Church of Christ** brand channel.
 
 ### 3. Store credentials in GitHub Secrets
 
