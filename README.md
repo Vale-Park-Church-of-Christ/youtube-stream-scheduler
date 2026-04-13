@@ -62,20 +62,26 @@ The script authenticates as a **dedicated generic Gmail account** (not the Works
 
 1. Go to [console.cloud.google.com](https://console.cloud.google.com) and create a new project.
 2. Enable the YouTube Data API v3: **APIs & Services → Enable APIs → search "YouTube Data API v3" → Enable**.
-3. Create OAuth credentials: **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
+3. Configure the OAuth consent screen: **APIs & Services → OAuth consent screen**.
+   - User type: **External**
+   - Publishing status: **Testing** (set during initial creation)
+   - Under **Test users**, add the brand account: `vale-church-of-6243@pages.plusgoogle.com`
+   - > **Important:** After saving, change the publishing status to **"In production"** (there is a "Publish app" button on the consent screen page). Testing mode causes refresh tokens to expire after 7 days. Switching to production removes that limit. Google will show an "unverified app" warning during the one-time auth flow — click **"Advanced → Go to [app] (unsafe)"** to proceed. No formal Google review is required for a Desktop app used by a small number of known accounts.
+4. Create OAuth credentials: **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
    - Application type: **Desktop app**
-4. Download the credentials JSON file — you'll need its contents in the next step.
+5. Download the credentials JSON file — you'll need its contents in the next step.
 
 ### 2. Authorize against the Brand Page channel
 
 1. Install dependencies locally: `pip install -r requirements.txt`
-2. Place `client_secrets.json` in this folder and run:
+2. Delete any existing `credentials.pkl` in `C:\git\vale-church-of-christ\youtube-stream-scheduler\` — the script will skip the auth flow if this file is present.
+3. Place `client_secrets.json` in this folder and run:
 
    ```powershell
    python scheduler.py
    ```
 
-3. A browser window will open. **Sign in as the generic Gmail account** (not the Workspace account). When prompted to choose a channel, select the **Vale Park Church of Christ** brand channel.
+4. A browser window will open. **Sign in as the generic Gmail account** (not the Workspace account). When prompted to choose a channel, select the **Vale Park Church of Christ** brand channel.
 
 ### 3. Store credentials in GitHub Secrets
 
