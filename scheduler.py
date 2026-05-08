@@ -42,10 +42,10 @@ STREAM_CDN = {
 # weekday() values: 0=Monday, 1=Tuesday, 2=Wednesday, ..., 6=Sunday
 # playlist: name of playlist to add this event to (optional)
 EVENTS = [
-    {'title': 'Sunday Morning Adult Bible Class',    'weekday': 6, 'hour': 9,  'minute': 0, 'playlist': 'Adult Bible Class'},
-    {'title': 'Sunday Morning Worship Service',      'weekday': 6, 'hour': 10, 'minute': 0},
-    {'title': 'Sunday Evening Worship Service',      'weekday': 6, 'hour': 17, 'minute': 0},
-    {'title': 'Wednesday Evening Adult Bible Class', 'weekday': 2, 'hour': 18, 'minute': 0, 'playlist': 'Adult Bible Class'},
+    {'title': 'Sunday Morning Adult Bible Class',    'weekday': 6, 'hour': 9,  'minute': 0, 'playlist': 'Adult Bible Class', 'stream': 'Sunday Morning Adult Bible Class'},
+    {'title': 'Sunday Morning Worship Service',      'weekday': 6, 'hour': 10, 'minute': 0,                                  'stream': 'Sunday Morning Worship Service'},
+    {'title': 'Sunday Evening Worship Service',      'weekday': 6, 'hour': 17, 'minute': 0,                                  'stream': 'Sunday Evening Worship Service'},
+    {'title': 'Wednesday Evening Adult Bible Class', 'weekday': 2, 'hour': 18, 'minute': 0, 'playlist': 'Adult Bible Class', 'stream': 'Wednesday Evening Adult Bible Class'},
 ]
 
 # ── Logging ────────────────────────────────────────────────────────────────────
@@ -156,6 +156,38 @@ def add_to_playlist(youtube, broadcast_id, playlist_id):
 
 # ── YouTube ────────────────────────────────────────────────────────────────────
 
+def get_or_create_stream(youtube, stream_title, stream_cache):
+    """Returns the stream ID for the named persistent stream, creating it if needed."""
+    if stream_title in stream_cache:
+        return stream_cache[stream_title]
+
+    request = youtube.liveStreams().list(
+        part='snippet',
+        mine=True,
+        maxResults=50,
+    )
+    while request:
+        response = request.execute()
+        for item in response.get('items', []):
+            if item['snippet']['title'] == stream_title:
+                stream_id = item['id']
+                stream_cache[stream_title] = stream_id
+                return stream_id
+        request = youtube.liveStreams().list_next(request, response)
+
+    stream = youtube.liveStreams().insert(
+        part='snippet,cdn',
+        body={
+            'snippet': {'title': stream_title},
+            'cdn':     STREAM_CDN,
+        }
+    ).execute()
+    stream_id = stream['id']
+    stream_cache[stream_title] = stream_id
+    logging.info(f'Created persistent stream: {stream_title}')
+    return stream_id
+
+
 def get_upcoming_broadcast_titles(youtube):
     """Returns the set of titles for all upcoming scheduled broadcasts."""
     titles  = set()
@@ -172,7 +204,7 @@ def get_upcoming_broadcast_titles(youtube):
     return titles
 
 
-def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=None):
+def create_broadcast_with_stream(youtube, title, start_time, date, stream_id, playlist_id=None):
     # 1. Create broadcast
     broadcast = youtube.liveBroadcasts().insert(
         part='snippet,status',
@@ -190,23 +222,14 @@ def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=N
 
     broadcast_id = broadcast['id']
 
-    # 2. Create stream
-    stream = youtube.liveStreams().insert(
-        part='snippet,cdn',
-        body={
-            'snippet': {'title': title},
-            'cdn':     STREAM_CDN,
-        }
-    ).execute()
-
-    # 3. Bind stream to broadcast
+    # 2. Bind persistent stream to broadcast
     youtube.liveBroadcasts().bind(
         part='id,contentDetails',
         id=broadcast_id,
-        streamId=stream['id'],
+        streamId=stream_id,
     ).execute()
 
-    # 4. Update video metadata
+    # 3. Update video metadata
     youtube.videos().update(
         part='snippet,status,recordingDetails',
         body={
@@ -226,7 +249,7 @@ def create_broadcast_with_stream(youtube, title, start_time, date, playlist_id=N
         }
     ).execute()
 
-    # 5. Add to playlist if applicable
+    # 4. Add to playlist if applicable
     if playlist_id:
         add_to_playlist(youtube, broadcast_id, playlist_id)
 
@@ -265,6 +288,7 @@ def main():
 
     existing_titles = get_upcoming_broadcast_titles(youtube)
     playlist_cache  = {}
+    stream_cache    = {}
 
     for date, event in get_expected_events():
         title = build_title(date, event['title'])
@@ -274,6 +298,7 @@ def main():
             continue
 
         start_time  = build_start_time(date, event['hour'], event['minute'])
+        stream_id   = get_or_create_stream(youtube, event['stream'], stream_cache)
         playlist_id = None
 
         if 'playlist' in event:
@@ -283,7 +308,7 @@ def main():
             playlist_id = playlist_cache[name]
 
         try:
-            create_broadcast_with_stream(youtube, title, start_time, date, playlist_id)
+            create_broadcast_with_stream(youtube, title, start_time, date, stream_id, playlist_id)
             logging.info(f'Created: {title}')
         except Exception as e:
             logging.error(f'Failed to create "{title}": {e}')
