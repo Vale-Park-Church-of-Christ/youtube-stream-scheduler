@@ -235,7 +235,7 @@ def create_broadcast_with_stream(youtube, title, start_time, date, stream_id, pl
 
     # 3. Update video metadata
     youtube.videos().update(
-        part='snippet,status,recordingDetails',
+        part='snippet,status,recordingDetails,contentDetails',
         body={
             'id': broadcast_id,
             'snippet': {
@@ -249,6 +249,9 @@ def create_broadcast_with_stream(youtube, title, start_time, date, stream_id, pl
             'recordingDetails': {
                 'recordingDate':     date.strftime('%Y-%m-%dT00:00:00.000Z'),
                 'locationDescription': LOCATION_DESCRIPTION,
+            },
+            'contentDetails': {
+                'enableEmbed':    True,
             },
         }
     ).execute()
@@ -339,7 +342,7 @@ def inspect_broadcast(broadcast_id):
 
     print('\n=== videos ===')
     video = youtube.videos().list(
-        part='snippet,status,recordingDetails,localizations',
+        part='snippet,status,recordingDetails,localizations,contentDetails',
         id=broadcast_id,
     ).execute()
     items = video.get('items', [])
