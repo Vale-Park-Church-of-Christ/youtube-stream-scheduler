@@ -217,6 +217,10 @@ def create_broadcast_with_stream(youtube, title, start_time, date, stream_id, pl
                 'privacyStatus':           'public',
                 'selfDeclaredMadeForKids': False,
             },
+            'contentDetails': {
+                'enableEmbed':    True,
+            },
+            
         }
     ).execute()
 
